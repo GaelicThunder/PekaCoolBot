@@ -28,7 +28,7 @@ Added some custom command :
 - start the UwU mode globally (not the best thing, but since the project is for me and some friends is ok, will change it if asked or get used by more people)
 
 /audio
-- basic Text to speech implementation, you need to set language (default is English). API from https://rapidapi.com/voicerss/api/text-to-speech-1/endpoints 
+- Text to Speech using Polly from Amazon Aws (can delete the sender message if is Admin of groups) 
 
 /png
 - get a screenshot of Peka's Screen
