@@ -30,3 +30,5 @@ Added some custom command :
 
 
 ![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_044753.jpg)
+![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_044826.jpg)
+![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_153957.jpg)
