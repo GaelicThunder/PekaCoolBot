@@ -284,7 +284,7 @@ bot.set_update_listener(text_model_processor)
 # GLOBAL MESSAGES SECTION.
 about_message = '''
 Peka *%s*
-[Source Code on Github](https://github.com/GaelicThunder/TriggerBot)
+[Source Code on Github](https://github.com/GaelicThunder/PekaCoolBot)
 Author: @GaelicThunder
 ''' % __version__
 
