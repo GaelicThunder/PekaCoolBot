@@ -15,7 +15,7 @@ Usually, a clock is displayed, but everytime a sentence is generated it get show
 
 Added some custom command :
 
-/8  
+/8 
 - Simple 8 Ball 
 
 /msg yourmessagehere
