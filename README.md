@@ -3,7 +3,8 @@
 Python 2.7/3.5 Bot for Telegram. 
 
 #### Setup:
-Run `sudo pip install -r requirements.txt` on your terminal.    
+Run `sudo pip install -r requirements.txt` on your terminal.    (OBSOLETE, NEED TO ADD NEW PACKAGES)
+
 Then just run one of the following: 
 
 ##### Peka.py:
