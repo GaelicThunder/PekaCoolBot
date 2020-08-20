@@ -24,6 +24,9 @@ Added some custom command :
 /temp
 - debug for seeing her temperature
 
+/uwu
+- start the UwU mode globally (not the best thing, but since the project is for me and some friends is ok, will change it if asked or get used by more people)
+
 /png
 - get a screenshot of Peka's Screen
 
