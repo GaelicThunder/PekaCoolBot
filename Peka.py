@@ -20,12 +20,18 @@ from PIL import Image, ImageFont, ImageDraw, ImageOps
 import textwrap
 import math
 from datetime import datetime
+import requests
+import boto3
 
-logging.basicConfig(filename='PekaLog.log',level=logging.DEBUG)
+
+
+
+
+logging.basicConfig(filename='/boot/TriggerBot-master/PekaLog.log',level=logging.DEBUG)
 led_states = [False for _ in range(6)]
 
 width, height = lcd.dimensions()
-spritemap = Image.open("Peka.png").convert("PA")
+spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
 image = Image.new('1', (width, height),"black")
 image.paste(spritemap,(width-32,33))
 draw = ImageDraw.Draw(image)
@@ -315,12 +321,40 @@ def is_private_chat(message: Message):
 def greet_user(message: Message):
     bot.reply_to(message, bot_help_text, parse_mode="Markdown")
 
-@bot.message_handler(commands=['png'], func=is_private_chat)
+# In case you want to let her talk with 2 different voice, not really optimized for a big realease, but again, is for me and my friends.
+@bot.message_handler(commands=['audio'])
+def audio(message: Message):
+    msg = message.text
+    msg=msg.replace("/audio ", '')
+    print(message.chat.id)
+    if message.chat.id==0:
+        polly_client = boto3.Session(
+                aws_access_key_id="",                     
+                aws_secret_access_key="",
+                region_name='us-east-1').client('polly')
+        response = polly_client.synthesize_speech(VoiceId='Salli',
+                OutputFormat='ogg_vorbis', 
+                Text = msg)
+    else:
+        polly_client = boto3.Session(
+                aws_access_key_id="",                     
+                aws_secret_access_key="",
+                region_name='us-east-1').client('polly')
+        response = polly_client.synthesize_speech(VoiceId='Bianca',
+                OutputFormat='ogg_vorbis', 
+                Text = msg)
+    with open('vocal.ogg', 'wb') as f:
+       f.write(response['AudioStream'].read())
+       f.close()
+    bot.send_voice(message.chat.id,voice=open("/boot/TriggerBot-master/vocal.ogg","rb"))
+    bot.delete_message(message.chat.id,message.message_id)
+
+@bot.message_handler(commands=['png'])
 def Png(message: Message):
     global ImagePng
     ImagePng=ImagePng.convert('RGB')
     ImagePng=ImageOps.invert(ImagePng)
-    ImagePng.save("Screen.png")
+    ImagePng.save("/boot/TriggerBot-master/Screen.png")
     bot.send_photo(message.chat.id,photo=open("/boot/TriggerBot-master/Screen.png","rb"))
 
 
@@ -349,7 +383,7 @@ def Time():
     time = os.popen("date +%R").readline()
     font = ImageFont.truetype(fonts.FredokaOne, 26)
     width, height = lcd.dimensions()
-    spritemap = Image.open("Peka.png").convert("PA")
+    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
     image = Image.new('1', (width, height),"black")
     image.paste(spritemap,(width-32,33))
     draw = ImageDraw.Draw(image)
@@ -384,7 +418,7 @@ def Msg(message: Message):
     msg=msg.replace("/msg ", '')
     font = ImageFont.truetype("/boot/TriggerBot-master/CCFONT.ttf", 12)
     width, height = lcd.dimensions()
-    spritemap = Image.open("Peka.png").convert("PA")
+    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
     image = Image.new('1', (width, height),"black")
     image.paste(spritemap,(width-32,33))
     draw = ImageDraw.Draw(image)
@@ -418,7 +452,7 @@ def Ball(message: Message):
     choose=random.choice(Ball)
     font = ImageFont.truetype("/boot/TriggerBot-master/CCFONT.ttf", 12)
     width, height = lcd.dimensions()
-    spritemap = Image.open("Peka.png").convert("PA")
+    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
     image = Image.new('1', (width, height),"black")
     image.paste(spritemap,(width-32,33))
     draw = ImageDraw.Draw(image)
@@ -627,7 +661,7 @@ def trigger_bot(message: Message):
     if(generated_message and not check_duplicated(generated_message, user_obj, group)):
         bot.reply_to(message, generated_message)
     else:
-        bot.reply_to(message, "<i>Fanculo</i>", parse_mode="HTML")
+        bot.reply_to(message, "<i>UwU</i>", parse_mode="HTML")
 
 
 def should_reply(user: TGUserModel, group: GroupSettings = None) -> bool:
@@ -674,7 +708,7 @@ def reply_on_mention(message: Message):
                generated_message=generated_message.replace("l", 'w')
                generated_message=generated_message.replace("r", 'w')
             width, height = lcd.dimensions()
-            spritemap = Image.open("Peka.png").convert("PA")
+            spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
             image = Image.new('1', (width, height),"black")
             image.paste(spritemap,(width-32,33))
             draw = ImageDraw.Draw(image)
@@ -710,7 +744,7 @@ def trigger_time(message: Message):
     if(generated_message and not check_duplicated(generated_message, user_obj, group)):
         bot.reply_to(message, generated_message)
     else:
-        bot.reply_to(message, "<i>Fanculo</i>", parse_mode="HTML")
+        bot.reply_to(message, "<i>UwU</i>", parse_mode="HTML")
 
 @bot.message_handler(content_types=['text'], func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot_info.id)
 def reply_on_reply(message: Message):
