@@ -26,3 +26,7 @@ Added some custom command :
 
 /png
 - get a screenshot of Peka's Screen
+
+
+
+![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_044753.jpg)
