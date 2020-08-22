@@ -50,6 +50,8 @@ rainbow=False
 r=0
 g=0
 b=0
+Volume=3
+Vocal=False
 Stop=False
 Count=10
 Clock=False
@@ -110,8 +112,13 @@ def Size(text):
 def handler(ch, event):
      global Clock
      global Backlight
+     global Volume
      if event == 'press':
-        if (ch == 2):
+        if (ch == 0) and Volume<6:
+            Volume=Volume+1
+        if (ch == 2) and Volume>0:
+            Volume=Volume-1
+        if (ch == 1):
             Clock = not Clock
             Time()
         if ((ch == 4) and (Backlight==False)):
@@ -121,12 +128,20 @@ def handler(ch, event):
             if ((ch == 4) and (Backlight==True)): 
                 Backlight=False
                 backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
+        for x in range(2,7):
+           for y in range(56,8,-1):
+               lcd.set_pixel(x, y, 0)
+        for x in range(2,6):
+           for y in range(56,int(56-(8*Volume)),-1):
+               lcd.set_pixel(x+(y  % 2), y, x % 2)
         backlight.show()
-
-for x in range(6):
-    touch.set_led(x, 1)
-    time.sleep(0.1)
-    touch.set_led(x, 0)
+        lcd.show()
+        
+def LedOnOff():
+    for x in range(6):
+        touch.set_led(x, 1)
+        time.sleep(0.1)
+        touch.set_led(x, 0)
 
 for x in range(6):
     backlight.set_pixel(x, 0, 0, 0)
@@ -143,11 +158,18 @@ for x in range(128):
 lcd.show()
 backlight.show()
 
-
+# VERSION 1.1: added volume control for screen
+# VERSION 1.0: added audio mode + percent of random vocal to be sent instead of text
+# VERSION 0.9: added UwU mode
+# VERSION 0.8: added png mode + night mode for screen + On/Off screen button
+# VERSION 0.7: added clock and face for Peka's screen
+# VERSION 0.6: added 8ball mode 
+# VERSION 0.5: added msg mode
+# VERSION 0.4: implementation of the screen (GFX HAT) & Temperature mode
 # VERSION 0.3: removed 100 messages limit, removed chain size and text size(defaults 3 and 1024), added algorithm and group settings.
 # VERSION 0.2: removed ignored users array and added chance field on user model, and a settings panel.
-# TODO: Inline buttons
-__version__ = 0.2
+
+__version__ = 1.1
 temp = ""
 debug_mode = config('DEBUG', cast=bool)
 if(debug_mode):
@@ -321,9 +343,9 @@ def is_private_chat(message: Message):
 def greet_user(message: Message):
     bot.reply_to(message, bot_help_text, parse_mode="Markdown")
 
-# In case you want to let her talk with 2 different voice, not really optimized for a big realease, but again, is for me and my friends.
 @bot.message_handler(commands=['audio'])
 def audio(message: Message):
+    global Vocal
     msg = message.text
     msg=msg.replace("/audio ", '')
     print(message.chat.id)
@@ -347,7 +369,12 @@ def audio(message: Message):
        f.write(response['AudioStream'].read())
        f.close()
     bot.send_voice(message.chat.id,voice=open("/boot/TriggerBot-master/vocal.ogg","rb"))
-    bot.delete_message(message.chat.id,message.message_id)
+    if Vocal==False:
+       bot.delete_message(message.chat.id,message.message_id)
+    else:
+       Vocal=False
+    LedOnOff()
+
 
 @bot.message_handler(commands=['png'])
 def Png(message: Message):
@@ -356,12 +383,13 @@ def Png(message: Message):
     ImagePng=ImageOps.invert(ImagePng)
     ImagePng.save("/boot/TriggerBot-master/Screen.png")
     bot.send_photo(message.chat.id,photo=open("/boot/TriggerBot-master/Screen.png","rb"))
-
+    LedOnOff()
 
 @bot.message_handler(commands=['temp'])
 def Temp(message: Message):
     temp = os.popen("vcgencmd measure_temp").readline()
     bot.reply_to(message, temp, parse_mode="Markdown")
+    LedOnOff():
 
 @bot.message_handler(commands=['uwu'])
 def UwU(message: Message):
@@ -372,7 +400,7 @@ def UwU(message: Message):
     else:
        UwUMode=False
        bot.reply_to(message, "UwU Mode Deactivated", parse_mode="Markdown")
-
+    LedOnOff()
 
 def Time():
     global Stop
@@ -438,6 +466,7 @@ def Msg(message: Message):
     ImagePng=image
     bot.reply_to(message, "✔️", parse_mode="Markdown")
     Stop=False
+    LedOnOff()
 
 @bot.message_handler(commands=['8'])
 def Ball(message: Message):
@@ -475,6 +504,8 @@ def Ball(message: Message):
     bot.reply_to(message, choose, parse_mode="Markdown")
     ImagePng=image
     Stop=False
+    LedOnOff()
+
 
 @bot.message_handler(commands=['about'], func=is_private_chat)
 def about(message: Message):
@@ -692,6 +723,9 @@ def reply_on_mention(message: Message):
     global Count
     global UwUMode
     global ImagePng
+    global Vocal
+    if random.randint(1, 100)<15:
+         Vocal=True
     Count=50
     Stop=True
     Clock=False
@@ -728,10 +762,15 @@ def reply_on_mention(message: Message):
             backlight.show()
             lcd.show()
             ImagePng=image
-            bot.reply_to(message, generated_message)
+            if Vocal==False:
+                bot.reply_to(message, generated_message)
+            else:
+                message.text=generated_message
+                audio(message)
             Stop=False
     else:
             Stop=False
+    LedOnOff()
 
 def trigger_time(message: Message):
     threading.Timer(random.randint(2400, 4800), trigger_time, [message]).start()
