@@ -22,29 +22,23 @@ import math
 from datetime import datetime
 import requests
 import boto3
+import psutil
 
 
 
 
-
-logging.basicConfig(filename='/boot/TriggerBot-master/PekaLog.log',level=logging.DEBUG)
+logging.basicConfig(filename='/boot/PekaCoolBot-master/PekaLog.log',level=logging.DEBUG)
 led_states = [False for _ in range(6)]
-
 width, height = lcd.dimensions()
-spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
+spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
 image = Image.new('1', (width, height),"black")
 image.paste(spritemap,(width-32,33))
 draw = ImageDraw.Draw(image)
-
 font = ImageFont.truetype(fonts.AmaticSCBold, 38)
-
 text = "Peka"
-
 w, h = font.getsize(text)
-
 x = (width - w) // 2
 y = (height - h) // 2
-
 draw.text((x, y), text, 1, font)
 rainbow=False
 r=0
@@ -53,11 +47,13 @@ b=0
 Volume=3
 Vocal=False
 Stop=False
-Count=10
+Count=5
 Clock=False
 Backlight=False
 UwUMode=False
 ImagePng=Image.new('1', (width, height),"black")
+
+
 def Rainbow():
     global r
     global g
@@ -106,20 +102,21 @@ def Size(text):
     # optionally de-increment to be sure it is less than criteria
     fontsize -= 1
     font = ImageFont.truetype(fonts.AmaticSCBold, fontsize)
-    print ("Draw finito ",fontsize)
     return(font)
 
 def handler(ch, event):
      global Clock
      global Backlight
      global Volume
+     global Count
      if event == 'press':
         if (ch == 0) and Volume<6:
             Volume=Volume+1
-        if (ch == 2) and Volume>0:
+        if (ch == 1) and Volume>0:
             Volume=Volume-1
-        if (ch == 1):
+        if (ch == 2):
             Clock = not Clock
+            Count=0
             Time()
         if ((ch == 4) and (Backlight==False)):
             Backlight=True
@@ -138,25 +135,32 @@ def handler(ch, event):
         lcd.show()
         
 def LedOnOff():
+    # Turn on and off led 
     for x in range(6):
         touch.set_led(x, 1)
         time.sleep(0.1)
         touch.set_led(x, 0)
 
-for x in range(6):
-    backlight.set_pixel(x, 0, 0, 0)
-    touch.on(x, handler)
+def MsgPrepare(msg):
+    # We replace anything the font wont handle or things that shouldnt be remembered by Peka
+    msg=msg.replace("/audio ", '')
+    msg=msg.replace("/msg ", '')
+    msg=msg.replace("/audio", '')
+    msg=msg.replace("/msg", '')
+    msg=msg.replace("é", "e'")
+    msg=msg.replace("á", "a'")
+    msg=msg.replace("í", "i'")
+    msg=msg.replace("ú", "u'")
+    msg=msg.replace("ó", "o'")
+    msg=msg.replace("è", "e'")
+    msg=msg.replace("à", "a'")
+    msg=msg.replace("ì", "i'")
+    msg=msg.replace("ù", "u'")
+    msg=msg.replace("ò", "o'")
+    return msg
 
 
-
-
-for x in range(128):
-    for y in range(64):
-        pixel = image.getpixel((x, y))
-        lcd.set_pixel(x, y, pixel)
-
-lcd.show()
-backlight.show()
+    
 
 # VERSION 1.1: added volume control for screen
 # VERSION 1.0: added audio mode + percent of random vocal to be sent instead of text
@@ -168,6 +172,9 @@ backlight.show()
 # VERSION 0.4: implementation of the screen (GFX HAT) & Temperature mode
 # VERSION 0.3: removed 100 messages limit, removed chain size and text size(defaults 3 and 1024), added algorithm and group settings.
 # VERSION 0.2: removed ignored users array and added chance field on user model, and a settings panel.
+
+
+
 
 __version__ = 1.1
 temp = ""
@@ -237,7 +244,6 @@ db.create_tables([TGUserModel, UserMessageModel, GeneratedMessageModel, GroupSet
 
 # Bot instance initialization.
 bot = telebot.TeleBot(config('BOT_TOKEN'))
-GameGroup=0
 # Bot starts here.
 logging.info('Bot started.')
 try:
@@ -294,7 +300,8 @@ def text_model_processor(messages: List[Message]):
     data_source = []
     for message in messages:
         # Only process text messages that are not commands and contains at least 3 words.
-        if message.content_type == "text" and not message.text.startswith('/') and message.text.count(' ') >= 2:
+        if message.content_type == "text" and not message.text.startswith('/png') and not message.text.startswith('/8') and not message.text.startswith('/uwu') and not message.text.startswith('/tmp') and not message.text.startswith('/stats') and message.text.count(' ') >= 2:
+            message.text=message.text.replace("/audio ", '')
             user = get_user_from_message(message)
             data_source.append({
                 'user': user, 'message_text': message.text.lower(),
@@ -341,14 +348,57 @@ def is_private_chat(message: Message):
 
 @bot.message_handler(commands=['start', 'help'], func=is_private_chat)
 def greet_user(message: Message):
+    bot.send_message(config('OWNER_ID'), str(message.chat.id)  + '\nSomeone new requested private start' )
     bot.reply_to(message, bot_help_text, parse_mode="Markdown")
 
+
+    
+#####################COMMANDS###########################
 @bot.message_handler(commands=['audio'])
 def audio(message: Message):
     global Vocal
+    global ImagePng
+    global Count
+    global Stop
+    global Clock
+    Count=30
+    Stop=True
+    Clock =False
+    lcd.clear
+    
+    # Prepare the text
     msg = message.text
-    msg=msg.replace("/audio ", '')
+    msg = MsgPrepare(msg)
+    
+    # We load the font and prepare the the screen
+    font = ImageFont.truetype("/boot/PekaCoolBot-master/CCFONT.ttf", 12)
+    width, height = lcd.dimensions()
+    spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
+    image = Image.new('1', (width, height),"black")
+    image.paste(spritemap,(width-32,33))
+    draw = ImageDraw.Draw(image)
+    lines = textwrap.wrap(msg, width=16)
+    y_text = 0
+    for line in lines:
+        w, h = font.getsize(line)
+        draw.text(((width-w)/4, y_text), line,1, font=font)
+        y_text += h
+    for x in range(128):
+        for y in range(64):
+            pixel = image.getpixel((x, y))
+            lcd.set_pixel(x, y, pixel)
+    backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
+    backlight.show()
+    lcd.show()
+    
+    # Save the image for /png command
+    ImagePng=image
+    
+    # Debug chat id printing
     print(message.chat.id)
+    
+    # We request Aws voice (in english or italian in this case), using a custom chat id
+    # I opted for .ogg cause the telegram vocals are .ogg
     if message.chat.id==0:
         polly_client = boto3.Session(
                 aws_access_key_id="",                     
@@ -365,33 +415,41 @@ def audio(message: Message):
         response = polly_client.synthesize_speech(VoiceId='Bianca',
                 OutputFormat='ogg_vorbis', 
                 Text = msg)
-    with open('vocal.ogg', 'wb') as f:
+    # Save the received audio
+    with open('/boot/PekaCoolBot-master/vocal.ogg', 'wb') as f:
        f.write(response['AudioStream'].read())
-       f.close()
-    bot.send_voice(message.chat.id,voice=open("/boot/TriggerBot-master/vocal.ogg","rb"))
+    f.close()
+    # Send the saved vocal
+    bot.send_voice(message.chat.id,voice=open("/boot/PekaCoolBot-master/vocal.ogg","rb"))
+    # If Peka is an admin in the group or in private, she 
     if Vocal==False:
        bot.delete_message(message.chat.id,message.message_id)
     else:
        Vocal=False
+    # Release the Stop variable 
+    Stop=False
     LedOnOff()
 
 
 @bot.message_handler(commands=['png'])
 def Png(message: Message):
     global ImagePng
+    # Convert to RGB and save it
     ImagePng=ImagePng.convert('RGB')
-    ImagePng=ImageOps.invert(ImagePng)
-    ImagePng.save("/boot/TriggerBot-master/Screen.png")
-    bot.send_photo(message.chat.id,photo=open("/boot/TriggerBot-master/Screen.png","rb"))
+    ImageConverted=ImageOps.invert(ImagePng)
+    # Invert the image since the colors are inverted
+    ImageConverted.save("/boot/PekaCoolBot-master/Screen.png")
+    bot.send_photo(message.chat.id,photo=open("/boot/PekaCoolBot-master/Screen.png","rb"))
     LedOnOff()
 
 @bot.message_handler(commands=['temp'])
 def Temp(message: Message):
+    # Get Temperature of the CPU
     temp = os.popen("vcgencmd measure_temp").readline()
     bot.reply_to(message, temp, parse_mode="Markdown")
-    LedOnOff():
+    LedOnOff()
 
-@bot.message_handler(commands=['pistats'])
+@bot.message_handler(commands=['stats'])
 def PIStats(message: Message):
     # CPU info
     cpuUsage =  str(psutil.cpu_percent()) + '%'
@@ -408,15 +466,15 @@ def PIStats(message: Message):
     # Divide from Bytes -> KB -> MB -> GB
     free = round(disk.free/1024.0/1024.0/1024.0,1)
     total = round(disk.total/1024.0/1024.0/1024.0,1)
-    diskStats str(free) + 'GB free / ' + str(total) + 'GB total ( ' + str(disk.percent) + '% )'
+    diskStats = str(free) + 'GB free / ' + str(total) + 'GB total ( ' + str(disk.percent) + '% )'
 
     # generic local machine information
     temperature = os.popen("vcgencmd measure_temp").readline()
-    
+    temperature = temperature.replace("temp=", "")
     # compose the final message
-    message = "CPU info %s\n , RAM info %s\n Disk info %s\n PI Temperature: %s\n"  (cpuUsage, memoryStats, diskStats, temperature)
+    FinalMessage = "CPU info %s\nRAM info %s\nDisk info %s\nTemperature %s\n" % (cpuUsage, memoryStats, diskStats, temperature)
     
-    bot.reply_to(message, message, parse_mode="Markdown")
+    bot.reply_to(message, FinalMessage, parse_mode="Markdown")
     LedOnOff()
 
 @bot.message_handler(commands=['uwu'])
@@ -430,24 +488,31 @@ def UwU(message: Message):
        bot.reply_to(message, "UwU Mode Deactivated", parse_mode="Markdown")
     LedOnOff()
 
-def Time():
-    global Stop
-    global ImagePng
-    date=datetime.now()
-    if Stop==True:
-      return 0
-    time = os.popen("date +%R").readline()
-    font = ImageFont.truetype(fonts.FredokaOne, 26)
-    width, height = lcd.dimensions()
-    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
-    image = Image.new('1', (width, height),"black")
-    image.paste(spritemap,(width-32,33))
-    draw = ImageDraw.Draw(image)
+def DrawTriangle(draw):
+    # Draw the triangle on the Screen
     draw.line([(32,8),(96,8)],fill ="white",width=1)
     draw.line([(32,8),(64,56)],fill ="white",width=1)
     draw.line([(96,8),(64,56)],fill ="white",width=1)
+    return draw
+    
+def Time():
+    global Stop
+    global ImagePng
+    lcd.clear
+    # If the variable Stop is True, it means the screen is being used by some other function, so abort
+    if Stop==True:
+      return 0
+    # Get the time
+    time = os.popen("date +%R").readline()
+    # Prepare the screen 
+    font = ImageFont.truetype(fonts.FredokaOne, 26)
+    width, height = lcd.dimensions()
+    spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
+    image = Image.new('1', (width, height),"black")
+    image.paste(spritemap,(width-32,33))
+    draw = ImageDraw.Draw(image)
+    draw = DrawTriangle(draw)
     w, h = font.getsize(time)
-    print(w,h)
     draw.text(((width-w+16)/2, 16), time,1, font=font)
     ImagePng=image
     for x in range(128):
@@ -455,6 +520,8 @@ def Time():
             pixel = image.getpixel((x, y))
             lcd.set_pixel(x, y, pixel)
     lcd.show()
+    # If it's night lower the Led colour and brightness
+    date=datetime.now()
     if date.hour>23 or date.hour<11:
       backlight.set_all(50,50,50)
     else:
@@ -467,22 +534,25 @@ def Msg(message: Message):
     global Stop
     global Count
     global ImagePng
-    Count=10
+    Count=30
     Stop=True
     Clock=False
+    lcd.clear
+    # Prepare the message
     msg = message.text
-    msg=msg.replace("/msg ", '')
-    font = ImageFont.truetype("/boot/TriggerBot-master/CCFONT.ttf", 12)
+    msg = MsgPrepare(msg)
+    # Prepare the screen 
+    font = ImageFont.truetype("/boot/PekaCoolBot-master/CCFONT.ttf", 12)
     width, height = lcd.dimensions()
-    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
+    spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
     image = Image.new('1', (width, height),"black")
     image.paste(spritemap,(width-32,33))
     draw = ImageDraw.Draw(image)
     lines = textwrap.wrap(msg, width=16)
-    y_text = 16
+    y_text = 0
     for line in lines:
         w, h = font.getsize(line)
-        draw.text(((width-w)/2, y_text), line,1, font=font)
+        draw.text(((width-w)/4, y_text), line,1, font=font)
         y_text += h
     for x in range(128):
         for y in range(64):
@@ -491,7 +561,9 @@ def Msg(message: Message):
     backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
     backlight.show()
     lcd.show()
+    # Save the image for /png command
     ImagePng=image
+    # Let know the user that the message has been sent
     bot.reply_to(message, "✔️", parse_mode="Markdown")
     Stop=False
     LedOnOff()
@@ -502,20 +574,22 @@ def Ball(message: Message):
     global Stop
     global Count
     global ImagePng
-    Count=10
+    Count=15
     Stop=True
     Clock=False
+    lcd.clear
+    # Create the 8Ball answers
     Ball = ["🎱 As I see it, yes 🎱","🎱 It is certain 🎱","🎱 It is decidedly so 🎱","🎱 Most likely 🎱","🎱 Outlook good 🎱","🎱 Signs point to yes 🎱","🎱 Without a doubt 🎱","🎱 Yes,Yes – definitely 🎱","🎱 You may rely on it 🎱","🎱 Reply hazy, try again 🎱","🎱 Ask again later 🎱","🎱 Better not tell you now 🎱","🎱 Cannot predict now 🎱","🎱 Concentrate and ask again 🎱","🎱 Don't count on it 🎱","🎱 My reply is no 🎱","🎱 My sources say no 🎱","🎱 Outlook not so good 🎱","🎱 Very doubtful 🎱"]
+    # Decide a random answer
     choose=random.choice(Ball)
-    font = ImageFont.truetype("/boot/TriggerBot-master/CCFONT.ttf", 12)
+    #Prepare the screen
+    font = ImageFont.truetype("/boot/PekaCoolBot-master/CCFONT.ttf", 12)
     width, height = lcd.dimensions()
-    spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
+    spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
     image = Image.new('1', (width, height),"black")
     image.paste(spritemap,(width-32,33))
     draw = ImageDraw.Draw(image)
-    draw.line([(32,8),(96,8)],fill ="white",width=1)
-    draw.line([(32,8),(64,56)],fill ="white",width=1)
-    draw.line([(96,8),(64,56)],fill ="white",width=1)
+    draw = DrawTriangle(draw)
     lines = textwrap.wrap(choose, width=16)
     y_text = 16
     for line in lines:
@@ -530,6 +604,7 @@ def Ball(message: Message):
     backlight.show()
     lcd.show()
     bot.reply_to(message, choose, parse_mode="Markdown")
+    # Save the image for /png command
     ImagePng=image
     Stop=False
     LedOnOff()
@@ -538,7 +613,7 @@ def Ball(message: Message):
 @bot.message_handler(commands=['about'], func=is_private_chat)
 def about(message: Message):
     bot.reply_to(message, about_message, parse_mode="Markdown")
-
+########################################################
 
 def get_statistics(user_obj: TGUserModel):
     message_count = user_obj.messages.count()
@@ -693,8 +768,6 @@ def generate_markov(messages: List[str]) -> str:
         state_size = 3
     text_model = markovify.NewlineText(messages, state_size=state_size)
     result = text_model.make_short_sentence(1024)
-    
-
     return result
 
 
@@ -706,21 +779,6 @@ def check_duplicated(message_text: str, user: TGUserModel, group: GroupSettings 
     if(created):
         logging.debug("New message: %s" % response.message_text)
     return not created
-
-
-@bot.message_handler(commands=['trigger'])
-def trigger_bot(message: Message):
-    threading.Timer(random.randint(10800, 21600), trigger_time, [message]).start()
-    logging.debug("ThreadPartito Trigger_Bot")
-    keyword = message.text.split(' ')
-    user_obj: TGUserModel = get_user_from_message(message)
-    group = get_group_from_message(message) if message.chat.type != 'private' else None
-    keyword = ' '.join(keyword[1:]) if(len(keyword) >= 2) else None
-    generated_message = generate_markov(fetch_messages(user_obj, group, keyword))
-    if(generated_message and not check_duplicated(generated_message, user_obj, group)):
-        bot.reply_to(message, generated_message)
-    else:
-        bot.reply_to(message, "<i>UwU</i>", parse_mode="HTML")
 
 
 def should_reply(user: TGUserModel, group: GroupSettings = None) -> bool:
@@ -754,7 +812,7 @@ def reply_on_mention(message: Message):
     global Vocal
     if random.randint(1, 100)<15:
          Vocal=True
-    Count=50
+    Count=30
     Stop=True
     Clock=False
     user_obj: TGUserModel = get_user_from_message(message)
@@ -769,13 +827,23 @@ def reply_on_mention(message: Message):
             if UwUMode==True:
                generated_message=generated_message.replace("l", 'w')
                generated_message=generated_message.replace("r", 'w')
+            generated_message=generated_message.replace("é", "e'")
+            generated_message=generated_message.replace("á", "a'")
+            generated_message=generated_message.replace("í", "i'")
+            generated_message=generated_message.replace("ú", "u'")
+            generated_message=generated_message.replace("ó", "o'")
+            generated_message=generated_message.replace("è", "e'")
+            generated_message=generated_message.replace("à", "a'")
+            generated_message=generated_message.replace("ì", "i'")
+            generated_message=generated_message.replace("ù", "u'")
+            generated_message=generated_message.replace("ò", "o'")
             width, height = lcd.dimensions()
-            spritemap = Image.open("/boot/TriggerBot-master/Peka.png").convert("PA")
+            spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
             image = Image.new('1', (width, height),"black")
             image.paste(spritemap,(width-32,33))
             draw = ImageDraw.Draw(image)
             w, h = lcd.dimensions()
-            font = ImageFont.truetype("/boot/TriggerBot-master/CCFONT.ttf", 12)
+            font = ImageFont.truetype("/boot/PekaCoolBot-master/CCFONT.ttf", 12)
             lines = textwrap.wrap(generated_message, width=16)
             y_text = 0
             for line in lines:
@@ -800,18 +868,7 @@ def reply_on_mention(message: Message):
             Stop=False
     LedOnOff()
 
-def trigger_time(message: Message):
-    threading.Timer(random.randint(2400, 4800), trigger_time, [message]).start()
-    logging.debug("ThreadPartito Trigger_Time")
-    keyword = message.text.split(' ')
-    user_obj: TGUserModel = get_user_from_message(message)
-    group = get_group_from_message(message) if message.chat.type != 'private' else None
-    keyword = ' '.join(keyword[1:]) if(len(keyword) >= 2) else None
-    generated_message = generate_markov(fetch_messages(user_obj, group, keyword))
-    if(generated_message and not check_duplicated(generated_message, user_obj, group)):
-        bot.reply_to(message, generated_message)
-    else:
-        bot.reply_to(message, "<i>UwU</i>", parse_mode="HTML")
+
 
 @bot.message_handler(content_types=['text'], func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot_info.id)
 def reply_on_reply(message: Message):
@@ -1017,7 +1074,20 @@ def safepolling():
         if rainbow==True:
             Rainbow()
 
+            
 if(__name__ == '__main__'):
+    # Setup the screen
+    LedOnOff()
+    for x in range(6):
+        backlight.set_pixel(x, 0, 0, 0)
+        touch.on(x, handler)
+    for x in range(128):
+        for y in range(64):
+            pixel = image.getpixel((x, y))
+            lcd.set_pixel(x, y, pixel)
+    lcd.show()
+    backlight.show()
+    
     # Tell owner the bot has started
     bot.remove_webhook()
     if(debug_mode):
