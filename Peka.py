@@ -391,6 +391,34 @@ def Temp(message: Message):
     bot.reply_to(message, temp, parse_mode="Markdown")
     LedOnOff():
 
+@bot.message_handler(commands=['pistats'])
+def PIStats(message: Message):
+    # CPU info
+    cpuUsage =  str(psutil.cpu_percent()) + '%'
+    
+    # RAM informations
+    memory = psutil.virtual_memory()
+    # Divide from Bytes -> KB -> MB
+    available = round(memory.available/1024.0/1024.0,1)
+    total = round(memory.total/1024.0/1024.0,1)
+    memoryStats = str(available) + 'MB free / ' + str(total) + 'MB total ( ' + str(memory.percent) + '% )'
+
+    # Disk informations
+    disk = psutil.disk_usage('/')
+    # Divide from Bytes -> KB -> MB -> GB
+    free = round(disk.free/1024.0/1024.0/1024.0,1)
+    total = round(disk.total/1024.0/1024.0/1024.0,1)
+    diskStats str(free) + 'GB free / ' + str(total) + 'GB total ( ' + str(disk.percent) + '% )'
+
+    # generic local machine information
+    temperature = os.popen("vcgencmd measure_temp").readline()
+    
+    # compose the final message
+    message = "CPU info %s\n , RAM info %s\n Disk info %s\n PI Temperature: %s\n"  (cpuUsage, memoryStats, diskStats, temperature)
+    
+    bot.reply_to(message, message, parse_mode="Markdown")
+    LedOnOff()
+
 @bot.message_handler(commands=['uwu'])
 def UwU(message: Message):
     global UwUMode
