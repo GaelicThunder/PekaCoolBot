@@ -34,7 +34,8 @@ Added some custom command :
 /png
 - get a screenshot of Peka's Screen
 
-
+/stats
+- get a various stats from the py
 
 ![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_044753.jpg)
 ![Image of Peka](https://github.com/GaelicThunder/PekaCoolBot/blob/master/Images/IMG_20200817_044826.jpg)
