@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import telebot
-import threading
 import os
 from peewee import *
 from decouple import config
@@ -29,16 +28,22 @@ import psutil
 
 logging.basicConfig(filename='/boot/PekaCoolBot-master/PekaLog.log',level=logging.DEBUG)
 led_states = [False for _ in range(6)]
+
 width, height = lcd.dimensions()
 spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
 image = Image.new('1', (width, height),"black")
 image.paste(spritemap,(width-32,33))
 draw = ImageDraw.Draw(image)
+
 font = ImageFont.truetype(fonts.AmaticSCBold, 38)
+
 text = "Peka"
+
 w, h = font.getsize(text)
+
 x = (width - w) // 2
 y = (height - h) // 2
+
 draw.text((x, y), text, 1, font)
 rainbow=False
 r=0
@@ -48,12 +53,9 @@ Volume=3
 Vocal=False
 Stop=False
 Count=5
-Clock=False
 Backlight=False
 UwUMode=False
 ImagePng=Image.new('1', (width, height),"black")
-
-
 def Rainbow():
     global r
     global g
@@ -105,7 +107,6 @@ def Size(text):
     return(font)
 
 def handler(ch, event):
-     global Clock
      global Backlight
      global Volume
      global Count
@@ -115,8 +116,6 @@ def handler(ch, event):
         if (ch == 1) and Volume>0:
             Volume=Volume-1
         if (ch == 2):
-            Clock = not Clock
-            Count=0
             Time()
         if ((ch == 4) and (Backlight==False)):
             Backlight=True
@@ -354,16 +353,16 @@ def greet_user(message: Message):
 
     
 #####################COMMANDS###########################
+
+
 @bot.message_handler(commands=['audio'])
 def audio(message: Message):
-    global Vocal
     global ImagePng
     global Count
     global Stop
-    global Clock
-    Count=30
+    
     Stop=True
-    Clock =False
+    Count=30
     lcd.clear
     
     # Prepare the text
@@ -387,9 +386,7 @@ def audio(message: Message):
         for y in range(64):
             pixel = image.getpixel((x, y))
             lcd.set_pixel(x, y, pixel)
-    backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
-    backlight.show()
-    lcd.show()
+
     
     # Save the image for /png command
     ImagePng=image
@@ -397,7 +394,7 @@ def audio(message: Message):
     # Debug chat id printing
     print(message.chat.id)
     
-    # We request Aws voice (in english or italian in this case), using a custom chat id
+    # We request Aws voice (in english or italian in this case)
     # I opted for .ogg cause the telegram vocals are .ogg
     if message.chat.id==0:
         polly_client = boto3.Session(
@@ -422,10 +419,11 @@ def audio(message: Message):
     # Send the saved vocal
     bot.send_voice(message.chat.id,voice=open("/boot/PekaCoolBot-master/vocal.ogg","rb"))
     # If Peka is an admin in the group or in private, she 
-    if Vocal==False:
-       bot.delete_message(message.chat.id,message.message_id)
-    else:
-       Vocal=False
+    bot.delete_message(message.chat.id,message.message_id)
+    
+    backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
+    backlight.show()
+    lcd.show()
     # Release the Stop variable 
     Stop=False
     LedOnOff()
@@ -498,10 +496,11 @@ def DrawTriangle(draw):
 def Time():
     global Stop
     global ImagePng
+    global Count
+    print("Time")
+    Stop=True
+    Count=1
     lcd.clear
-    # If the variable Stop is True, it means the screen is being used by some other function, so abort
-    if Stop==True:
-      return 0
     # Get the time
     time = os.popen("date +%R").readline()
     # Prepare the screen 
@@ -527,16 +526,17 @@ def Time():
     else:
       backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
     backlight.show()
+    Stop=False
+    
 
 @bot.message_handler(commands=['msg'])
 def Msg(message: Message):
-    global Clock
     global Stop
     global Count
     global ImagePng
-    Count=30
+    
     Stop=True
-    Clock=False
+    Count=30
     lcd.clear
     # Prepare the message
     msg = message.text
@@ -565,18 +565,17 @@ def Msg(message: Message):
     ImagePng=image
     # Let know the user that the message has been sent
     bot.reply_to(message, "✔️", parse_mode="Markdown")
-    Stop=False
     LedOnOff()
+    Stop=False
 
 @bot.message_handler(commands=['8'])
 def Ball(message: Message):
-    global Clock
     global Stop
     global Count
     global ImagePng
-    Count=15
+    
     Stop=True
-    Clock=False
+    Count=15
     lcd.clear
     # Create the 8Ball answers
     Ball = ["🎱 As I see it, yes 🎱","🎱 It is certain 🎱","🎱 It is decidedly so 🎱","🎱 Most likely 🎱","🎱 Outlook good 🎱","🎱 Signs point to yes 🎱","🎱 Without a doubt 🎱","🎱 Yes,Yes – definitely 🎱","🎱 You may rely on it 🎱","🎱 Reply hazy, try again 🎱","🎱 Ask again later 🎱","🎱 Better not tell you now 🎱","🎱 Cannot predict now 🎱","🎱 Concentrate and ask again 🎱","🎱 Don't count on it 🎱","🎱 My reply is no 🎱","🎱 My sources say no 🎱","🎱 Outlook not so good 🎱","🎱 Very doubtful 🎱"]
@@ -606,8 +605,8 @@ def Ball(message: Message):
     bot.reply_to(message, choose, parse_mode="Markdown")
     # Save the image for /png command
     ImagePng=image
-    Stop=False
     LedOnOff()
+    Stop=False
 
 
 @bot.message_handler(commands=['about'], func=is_private_chat)
@@ -804,17 +803,14 @@ def should_reply(user: TGUserModel, group: GroupSettings = None) -> bool:
 
 @bot.message_handler(regexp='{}|{}'.format(bot_info.first_name, bot_info.username))
 def reply_on_mention(message: Message):
-    global Clock
     global Stop
     global Count
     global UwUMode
     global ImagePng
     global Vocal
+    lcd.clear
     if random.randint(1, 100)<15:
          Vocal=True
-    Count=30
-    Stop=True
-    Clock=False
     user_obj: TGUserModel = get_user_from_message(message)
     group: GroupSettings = get_group_from_message(message) if message.chat.type != 'private' else None
     if(group and group.override_settings):  # Use group's settings
@@ -824,19 +820,12 @@ def reply_on_mention(message: Message):
         settings = user_obj
     generated_message = generate_markov(fetch_messages(settings, group))
     if (generated_message and not check_duplicated(generated_message, user_obj, group)):
+            Stop=False
+            Count=30
             if UwUMode==True:
                generated_message=generated_message.replace("l", 'w')
                generated_message=generated_message.replace("r", 'w')
-            generated_message=generated_message.replace("é", "e'")
-            generated_message=generated_message.replace("á", "a'")
-            generated_message=generated_message.replace("í", "i'")
-            generated_message=generated_message.replace("ú", "u'")
-            generated_message=generated_message.replace("ó", "o'")
-            generated_message=generated_message.replace("è", "e'")
-            generated_message=generated_message.replace("à", "a'")
-            generated_message=generated_message.replace("ì", "i'")
-            generated_message=generated_message.replace("ù", "u'")
-            generated_message=generated_message.replace("ò", "o'")
+            generated_message=MsgPrepare(generated_message)
             width, height = lcd.dimensions()
             spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
             image = Image.new('1', (width, height),"black")
@@ -859,14 +848,15 @@ def reply_on_mention(message: Message):
             lcd.show()
             ImagePng=image
             if Vocal==False:
+                LedOnOff()
+                Stop=False
                 bot.reply_to(message, generated_message)
             else:
                 message.text=generated_message
+                Stop=False
                 audio(message)
-            Stop=False
-    else:
-            Stop=False
-    LedOnOff()
+            
+
 
 
 
@@ -877,6 +867,13 @@ def reply_on_reply(message: Message):
 # Try to reply to every text message
 @bot.message_handler(content_types=['text'])
 def reply_intent(message: Message):
+    global Vocal
+    global ImagePng
+    global Count
+    global Stop
+    if random.randint(1, 100)<15:
+         Vocal=True
+    lcd.clear
     user_obj: TGUserModel = get_user_from_message(message)
     group: GroupSettings = get_group_from_message(message) if message.chat.type != 'private' else None
     if (group and group.override_settings):  # Use group's settings
@@ -887,7 +884,43 @@ def reply_intent(message: Message):
     if(should_reply(settings, group)):
         generated_message = generate_markov(fetch_messages(settings, group))
         if (generated_message and not check_duplicated(generated_message, user_obj, group)):
-            bot.reply_to(message, generated_message)
+            Stop=False
+            Count=30
+            # Prepare the text
+            msg = generated_message
+            msg = MsgPrepare(msg)
+            # We load the font and prepare the the screen
+            width, height = lcd.dimensions()
+            spritemap = Image.open("/boot/PekaCoolBot-master/Peka.png").convert("PA")
+            image = Image.new('1', (width, height),"black")
+            image.paste(spritemap,(width-32,33))
+            draw = ImageDraw.Draw(image)
+            w, h = lcd.dimensions()
+            font = ImageFont.truetype("/boot/PekaCoolBot-master/CCFONT.ttf", 12)
+            lines = textwrap.wrap(msg, width=16)
+            y_text = 0
+            for line in lines:
+                width, height = font.getsize(line)
+                draw.text(((w- width)/4, y_text), line,1, font=font)
+                y_text += height
+            for x in range(128):
+                for y in range(64):
+                  pixel = image.getpixel((x, y))
+                  lcd.set_pixel(x, y, pixel)
+            backlight.set_all(random.randint(0,255),random.randint(0,255),random.randint(0,255))
+            backlight.show()
+            lcd.show()
+            # Save the image for /png command
+            ImagePng=image
+            if Vocal==False:
+                LedOnOff()
+                Stop=False
+                bot.reply_to(message, generated_message)
+            else:
+                message.text=generated_message
+                Stop=False
+                audio(message)
+            
 
 
 def get_user_from_callback(query: CallbackQuery) -> TGUserModel:
@@ -1046,13 +1079,22 @@ def notify_exceptions(exception_instance: Exception):
 # This makes the bot unstoppable :^)
 def safepolling():
     global rainbow
-    global Clock
+    global Stop
     global Count
     if(bot.skip_pending):
         last_update_id = bot.get_updates()[-1].update_id
     else:
         last_update_id = 0
     while(1):
+        print("Count = ",Count)
+        print("Stop = ",Stop)
+        if Count>0:
+            Count=Count-1
+        else:
+            if Stop==False:
+                Time()
+        if rainbow==True:
+            Rainbow()
         logging.debug("Getting updates using update id %s", last_update_id)
         try:
             updates = bot.get_updates(last_update_id + 1, 50)
@@ -1065,14 +1107,6 @@ def safepolling():
         except Exception as exception_instance:
             if(debug_mode):
                 notify_exceptions(exception_instance)
-        print("Count = ",Count)
-        if Count>0:
-            Count=Count-1
-        else:
-            Clock=True
-            Time()
-        if rainbow==True:
-            Rainbow()
 
             
 if(__name__ == '__main__'):
